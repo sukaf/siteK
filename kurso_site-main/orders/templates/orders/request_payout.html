@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4>Запрос на выплату</h4>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <p>Доступный баланс: <strong>{{ balance }} руб.</strong></p>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label for="amount" class="form-label">Сумма выплаты:</label>
+                    <input type="number" step="0.01" min="0.01" max="{{ balance }}"
+                           class="form-control" id="amount" name="amount" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-money-bill-wave"></i> Запросить выплату
+                </button>
+                <a href="{% url 'profile' %}" class="btn btn-secondary">Отмена</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

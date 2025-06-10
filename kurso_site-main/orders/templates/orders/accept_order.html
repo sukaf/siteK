@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Принять заказ</h2>
+  <p><strong>Название:</strong> {{ order.title }}</p>
+  <p><strong>Описание:</strong> {{ order.description }}</p>
+  <p><strong>Цена заказчика:</strong> {{ order.price }} руб.</p>
+
+  {% if order.file %}
+    <p><strong>Прикрепленный файл:</strong>
+      <a href="{{ order.file.url }}" target="_blank">Скачать</a>
+    </p>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" name="accept">Принять по текущей цене</button>
+  </form>
+
+  <h3>Или предложите свою цену</h3>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" name="propose_price">Предложить цену</button>
+  </form>
+
+  <a href="{% url 'orders:order_list' %}">Отмена</a>
+{% endblock %}

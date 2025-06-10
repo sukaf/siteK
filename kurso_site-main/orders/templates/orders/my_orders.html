@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Мои принятые заказы</h2>
+
+  {% if orders %}
+    <ul>
+      {% for order in orders %}
+        <li>
+          <strong>{{ order.title }}</strong> ({{ order.price }} руб.)
+          <a href="{% url 'orders:order_detail' order.id %}">Подробнее</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>У вас нет активных заказов.</p>
+  {% endif %}
+
+  <a href="{% url 'users:profile' %}">Вернуться в личный кабинет</a>
+{% endblock %}
+

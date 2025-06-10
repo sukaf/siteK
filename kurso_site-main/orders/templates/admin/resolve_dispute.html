@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Разрешить спор #{{ dispute.id }}</h1>
+
+<p><strong>Заказ:</strong> {{ order }}</p>
+<p><strong>Сумма:</strong> {{ order.price }}</p>
+<p><strong>Покупатель:</strong> {{ order.customer.username }}</p>
+<p><strong>Исполнитель:</strong> {{ order.employee.username }}</p>
+
+<form method="post">{% csrf_token %}
+    <label><strong>Кому перевести деньги?</strong></label><br>
+    <input type="radio" name="decision" value="customer" required> Покупателю ({{ order.customer.username }})<br>
+    <input type="radio" name="decision" value="executor" required> Исполнителю ({{ order.employee.username }})<br><br>
+
+    <label for="admin_comment"><strong>Комментарий администратора:</strong></label><br>
+    <textarea name="admin_comment" rows="4" cols="60"></textarea><br><br>
+
+    <button type="submit" class="default">Подтвердить решение</button>
+</form>
+{% endblock %}
+
+
+
+
+

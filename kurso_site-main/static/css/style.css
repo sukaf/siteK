@@ -1,0 +1,46 @@
+.order-form-container {
+    background-color: #c0e234;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.order-extra-options {
+    margin-top: 10px;
+}
+
+.order-extra-options a {
+    margin-right: 10px;
+    text-decoration: none;
+    color: #007bff;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.privacy-notice {
+    font-size: 12px;
+    margin-top: 15px;
+}

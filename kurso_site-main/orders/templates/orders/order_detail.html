@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+  <h2>Детали заказа: {{ order.title }}</h2>
+
+  <div class="order-info card mb-4">
+    <div class="card-body">
+      <p><strong>Статус:</strong> <span class="badge
+        {% if order.status == 'completed' %}bg-success
+        {% elif order.status == 'rejected' %}bg-danger
+        {% elif order.status == 'submitted' %}bg-warning
+        {% else %}bg-info{% endif %}">
+        {{ order.get_status_display }}
+      </span></p>
+      <p><strong>Описание:</strong> {{ order.description }}</p>
+      <p><strong>Цена:</strong> {{ order.price }} руб.</p>
+      <p><strong>Срок сдачи:</strong> {{ order.deadline|default:"не указан" }}</p>
+
+      {% if order.file %}
+        <div class="mt-3">
+          <a href="{{ order.file.url }}" download class="btn btn-secondary">
+            <i class="fas fa-download"></i> Скачать исходный файл
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Блок предложений цены -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">Предложения цены</h5>
+    </div>
+    <div class="card-body">
+      {% if proposals %}
+        <div class="list-group mb-3">
+          {% for proposal in proposals %}
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ proposal.employee.username }}</strong> предложил
+              <span class="badge bg-primary rounded-pill">{{ proposal.proposed_price }} руб.</span>
+              <small class="text-muted ms-2">{{ proposal.created_at|date:"d.m.Y H:i" }}</small>
+            </div>
+            {% if user == order.customer and order.status == 'pending' %}
+              {% if not proposal.is_accepted %}
+              <form action="{% url 'orders:approve_proposal' proposal.id %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success">Принять</button>
+              </form>
+              {% else %}
+              <span class="badge bg-success">Принято</span>
+              {% endif %}
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted">Пока нет предложений цены</p>
+      {% endif %}
+
+      {% if can_propose_price %}
+        <a href="{% url 'propose_price' order.id %}" class="btn btn-primary">
+          Предложить свою цену
+        </a>
+      {% elif user.is_employee and order.status == 'pending' and user_has_proposal %}
+        <div class="alert alert-info">
+          Вы уже предложили цену для этого заказа
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Остальные блоки остаются без изменений -->
+  <!-- Блок управления статусом -->
+  <div class="card mb-4">
+    <!-- ... существующий код ... -->
+  </div>
+
+  <!-- Блок управления статусом -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">Действия с заказом</h5>
+    </div>
+    <div class="card-body">
+      {% if user == order.employee and order.status == 'in_progress' %}
+        <form action="{% url 'orders:submit_to_client' order.id %}" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="completed_file" class="form-label">Прикрепите готовую работу:</label>
+            <input type="file" class="form-control" id="completed_file" name="completed_file" required>
+          </div>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-paper-plane"></i> Отправить клиенту
+          </button>
+        </form>
+
+      {% elif user == order.customer and order.status == 'submitted' %}
+        <div class="d-flex gap-2">
+          <form action="{% url 'orders:client_approve' order.id %}" method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-check"></i> Принять заказ
+            </button>
+          </form>
+
+          <a href="{% url 'orders:client_reject' order.id %}" class="btn btn-danger">
+            <i class="fas fa-times"></i> Отклонить
+          </a>
+        </div>
+
+        {% if order.completed_file %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Готовая работа</h5>
+            </div>
+            <div class="card-body">
+                <a href="{{ order.completed_file.url }}" class="btn btn-primary" download>
+                    <i class="fas fa-download"></i> Скачать {{ order.completed_file.name }}
+                </a>
+                <small class="text-muted ms-2">
+                    {{ order.completed_file.size|filesizeformat }},
+                    загружен {{ order.submitted_at|date:"d.m.Y H:i" }}
+                </small>
+            </div>
+        </div>
+        {% endif %}
+
+      {% elif order.status == 'rejected' and user == order.employee %}
+        <div class="alert alert-warning">
+          <h5>Причина отклонения:</h5>
+          <p>{{ order.rejection_comment }}</p>
+        </div>
+
+        <form action="{% url 'submit_to_client' order.id %}" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="completed_file" class="form-label">Исправленная работа:</label>
+            <input type="file" class="form-control" id="completed_file" name="completed_file" required>
+          </div>
+          <button type="submit" class="btn btn-warning">
+            <i class="fas fa-redo"></i> Отправить повторно
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Чат -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Чат с {% if user == order.customer %}{{ order.employee.username }}{% else %}{{ order.customer.username }}{% endif %}</h5>
+    </div>
+    <div class="card-body">
+      <div class="chat-messages mb-3" style="height: 300px; overflow-y: auto;">
+        {% for message in order.messages.all %}
+          <div class="message {% if message.sender == user %}sent{% else %}received{% endif %} mb-2 p-2 rounded">
+            <div class="message-header d-flex justify-content-between">
+              <strong>{{ message.sender.username }}</strong>
+              <small>{{ message.timestamp|date:"H:i d.m.Y" }}</small>
+            </div>
+            <div class="message-body">{{ message.text }}</div>
+          </div>
+        {% empty %}
+          <p class="text-muted">Сообщений пока нет</p>
+        {% endfor %}
+      </div>
+
+      <form method="post" class="chat-form">
+        {% csrf_token %}
+        <div class="input-group">
+          <input type="text" name="text" class="form-control" placeholder="Введите сообщение..." required>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <a href="{% url 'users:profile' %}" class="btn btn-outline-secondary mt-3">
+    <i class="fas fa-arrow-left"></i> Вернуться в личный кабинет
+  </a>
+</div>
+
+  <a href="{% url 'users:profile' %}" class="btn btn-outline-secondary mt-3">
+    <i class="fas fa-arrow-left"></i> Вернуться в личный кабинет
+  </a>
+</div>
+
+<style>
+  /* ... существующие стили ... */
+</style>
+{% endblock %}
+
+

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Пополнение баланса</h2>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="amount">Сумма (руб.)</label>
+            <input type="number" class="form-control" id="amount" name="amount" min="50" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Перейти к оплате</button>
+    </form>
+</div>
+{% endblock %}
+
+
+

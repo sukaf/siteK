@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Разрешение спора по заказу #{{ dispute.order.id }}</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5>Информация о споре:</h5>
+            <p><strong>Заказчик:</strong> {{ dispute.order.customer.username }}</p>
+            <p><strong>Исполнитель:</strong> {{ dispute.order.employee.username }}</p>
+            <p><strong>Сумма:</strong> {{ dispute.order.price }} руб.</p>
+            <p><strong>Комментарий заказчика:</strong> {{ dispute.customer_comment }}</p>
+            {% if dispute.employee_comment %}
+                <p><strong>Комментарий исполнителя:</strong> {{ dispute.employee_comment }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <label for="decision">Выберите решение:</label>
+        <select name="decision" id="decision" required>
+            {% for value, label in decisions %}
+                <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        <br>
+
+        <label for="refund_customer">
+            <input type="checkbox" name="refund_customer" id="refund_customer">
+            Вернуть средства клиенту
+        </label>
+
+        <br>
+
+        <button type="submit">Разрешить спор</button>
+    </form>
+
+</div>
+{% endblock %}
+

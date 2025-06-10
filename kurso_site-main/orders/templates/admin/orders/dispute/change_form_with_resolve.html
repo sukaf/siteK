@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block object-tools-items %}
+    {{ block.super }}
+    {% if original and original.status == 'pending' %}
+        <li>
+            <a href="./resolve/" class="button">Решить спор</a>
+        </li>
+    {% endif %}
+{% endblock %}
+
+

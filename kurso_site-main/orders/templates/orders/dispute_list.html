@@ -1,0 +1,22 @@
+
+{% load static %}
+
+{% block content %}
+  <h1>Ожидающие споры</h1>
+
+  {% if active_disputes %}
+    <ul>
+      {% for dispute in active_disputes %}
+        <li>
+          Заказ: {{ dispute.order.id }} —
+          Клиент: {{ dispute.order.customer.username }} —
+          <a href="{% url 'resolve_dispute' dispute.id %}">Разрешить спор</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Нет активных споров.</p>
+  {% endif %}
+{% endblock %}
+
+

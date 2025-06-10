@@ -1,0 +1,909 @@
+from django.contrib.auth.models import AbstractUser, Group, Permission
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from decimal import Decimal
+
+
+#users\models
+
+class User(AbstractUser):
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
+
+    is_customer = models.BooleanField(default=False, verbose_name="Заказчик")
+    is_employee = models.BooleanField(default=False, verbose_name="Исполнитель")
+
+    # Кошелек для внутренних расчетов
+    wallet_address = models.CharField(max_length=100, blank=True, null=True, verbose_name="Кошелек")
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Телефон")
+
+    groups = models.ManyToManyField(
+        Group,
+        verbose_name="Группы",
+        blank=True,
+        related_name="custom_user_groups"
+    )
+    user_permissions = models.ManyToManyField(
+        Permission,
+        verbose_name="Права доступа",
+        blank=True,
+        related_name="custom_user_permissions"
+    )
+
+    def clean(self):
+        if self.is_customer and self.is_employee:
+            raise ValidationError("Пользователь не может быть одновременно заказчиком и исполнителем")
+
+    def __str__(self):
+        return self.username
+
+
+class Profile(models.Model):
+    class Meta:
+        verbose_name = 'Профиль'
+        verbose_name_plural = 'Профили'
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    frozen_balance = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=5.00, verbose_name="Рейтинг")
+    completed_orders = models.PositiveIntegerField(default=0, verbose_name="Завершенные заказы")
+    is_admin_wallet = models.BooleanField(default=False)
+
+    @property
+    def available_balance(self):
+        return self.balance - self.frozen_balance
+
+    def deposit(self, amount):
+        """Пополнение баланса"""
+        if amount <= 0:
+            raise ValidationError("Сумма пополнения должна быть положительной")
+
+        with transaction.atomic():
+            self.balance += amount
+            self.save()
+        return True
+
+    def withdraw(self, amount):
+        """Снятие средств (для внутренних операций)"""
+        if amount <= 0:
+            raise ValidationError("Сумма снятия должна быть положительной")
+
+        if self.balance < amount:
+            raise ValidationError("Недостаточно средств на балансе")
+
+        with transaction.atomic():
+            self.balance -= amount
+            self.save()
+        return True
+
+    def can_pay(self, amount):
+        return self.balance >= amount
+
+    def freeze_funds(self, amount):
+        if not self.can_pay(amount):
+            raise ValidationError("Недостаточно средств")
+        with transaction.atomic():
+            self.balance -= amount
+            self.frozen_balance += amount
+            self.save()
+
+    def release_funds(self, amount):
+        if self.frozen_balance < amount:
+            raise ValidationError("Недостаточно замороженных средств")
+        with transaction.atomic():
+            self.frozen_balance -= amount
+            self.balance += amount
+            self.save()
+
+    def request_payout(self, amount):
+        """Создание запроса на вывод средств"""
+        from orders.models import PayoutRequest  # Импорт здесь для избежания циклических импортов
+
+        if amount <= 0:
+            raise ValidationError("Сумма выплаты должна быть положительной")
+
+        if self.balance < amount:
+            raise ValidationError("Недостаточно средств для вывода")
+
+        with transaction.atomic():
+            # Резервируем средства
+            self.balance -= amount
+            self.save()
+
+            # Создаем запрос на выплату
+            payout = PayoutRequest.objects.create(
+                employee=self.user,
+                amount=amount
+            )
+        return payout
+
+    def __str__(self):
+        return f"{self.user.username} (Баланс: {self.balance} руб.)"
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created and not hasattr(instance, 'profile'):
+        Profile.objects.create(user=instance)
+
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    if hasattr(instance, 'profile'):
+        instance.profile.save()
+
+
+class Transaction(models.Model):
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_type = models.CharField(max_length=50)  # Например: "dispute_commission", "payout", "deposit" и т.д.
+    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.transaction_type} {self.amount} for {self.profile.user.username} on {self.created_at}"
+
+
+
+
+
+
+
+
+
+# orders\models.py
+from django.utils import timezone
+from django.db import models, transaction
+from users.models import User, Profile
+import os
+import transliterate
+from django.utils.text import slugify
+from django.utils.timezone import now, timedelta
+from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
+from decimal import Decimal
+import logging
+from django.conf import settings
+from django.db import transaction
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
+
+#orders\models
+
+def rename_uploaded_file(instance, filename):
+    name, ext = os.path.splitext(filename)
+    try:
+        name = transliterate.translit(name, reversed=True)
+    except Exception:
+        pass
+    name = slugify(name)
+    return f"uploads/{name}{ext}"
+
+
+class Order(models.Model):
+
+    WORK_TYPE_CHOICES = [
+        ('coursework', 'Курсовая работа'),
+        ('diploma', 'Дипломная работа'),
+        ('essay', 'Эссе'),
+        ('research', 'Реферат'),
+        ('lab_work', 'Лабораторная'),
+        ('other', 'Другое'),
+    ]
+
+    work_type = models.CharField(
+        max_length=20,
+        choices=WORK_TYPE_CHOICES,
+        default='coursework',
+        verbose_name="Тип работы"
+    )
+
+    class Meta:
+        verbose_name = 'Заказ'
+        verbose_name_plural = 'Заказы'
+        ordering = ['-created_at']
+
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает исполнителя'),
+        ('price_proposed', 'Ожидает подтверждения цены'),
+        ('waiting_approval', 'Ожидает подтверждения'),
+        ('in_progress', 'В работе'),
+        ('submitted', 'Отправлено клиенту'),
+        ('approved', 'Принято клиентом'),
+        ('rejected', 'Отклонено клиентом'),
+        ('completed', 'Завершено'),
+        ('auto_completed', 'Автоматически завершено'),
+        ('refunded', 'Возврат средств'),
+        ('closed', 'Закрыт'),
+    ]
+
+    TAG_CHOICES = [
+        ('ready_work', 'Готовая работа'),
+        ('consultation', 'Консультация'),
+        ('final_touches', 'Финальные штрихи'),
+    ]
+
+    dispute_deadline = models.DateTimeField(null=True, blank=True)
+
+    customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_orders')
+    employee = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='employee_orders')
+    title = models.CharField(max_length=255, verbose_name="Название")
+    description = models.TextField(verbose_name="Описание")
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'),
+                                validators=[MinValueValidator(Decimal('0.01'))], verbose_name="Цена")
+    proposed_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                         verbose_name="Предложенная цена")
+
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='pending', verbose_name="Статус")
+    is_price_approved = models.BooleanField(default=False, verbose_name="Цена согласована")
+    deadline = models.DateField(verbose_name="Срок сдачи", null=True, blank=True)
+    file = models.FileField(upload_to=rename_uploaded_file, verbose_name="Файл", null=True, blank=True)
+    tag = models.CharField(max_length=30, choices=TAG_CHOICES, blank=True, null=True, verbose_name="Тип заказа")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+
+    payout_due_date = models.DateTimeField(null=True, blank=True, verbose_name="Дата авто-выплаты")
+    rejection_comment = models.TextField(null=True, blank=True, verbose_name="Комментарий отклонения")
+    submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата отправки")
+    comment = models.TextField(verbose_name="Комментарий", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+    completed_file = models.FileField(upload_to='completed_orders/', null=True, blank=True)
+
+    def accept_order(self, employee):
+        """Исполнитель принимает заказ и замораживает средства заказчика"""
+        if self.status != 'pending':
+            raise ValidationError("Заказ уже принят")
+
+        if not employee.is_employee:
+            raise ValidationError("Только исполнитель может принимать заказы")
+
+        with transaction.atomic():
+            # Проверяем наличие профиля у заказчика
+            if not hasattr(self.customer, 'profile'):
+                raise ValidationError("У заказчика отсутствует профиль")
+
+            customer_profile = self.customer.profile
+
+            # Проверяем достаточность средств
+            if customer_profile.balance < self.price:
+                raise ValidationError("Недостаточно средств у заказчика")
+
+            # Замораживаем средства
+            customer_profile.balance -= self.price
+            customer_profile.frozen_balance += self.price
+            customer_profile.save()
+
+            # Назначаем исполнителя и меняем статус
+            self.employee = employee
+            self.status = 'in_progress'
+            self.save()
+
+            # Создаем запись о транзакции
+            Transaction.objects.create(
+                user=self.customer,
+                amount=-self.price,
+                order=self,
+                transaction_type='freeze',
+                comment="Заморозка средств при принятии заказа"
+            )
+
+    def calculate_commission(self, amount):
+        """Вычислить комиссию сайта — 10% от суммы."""
+        commission_rate = 0.10
+        commission_amount = amount * commission_rate
+        return commission_amount
+
+    def pay_executor(self, amount):
+        """
+        Выплатить исполнителю с учетом комиссии.
+        amount — сумма, которую нужно выплатить исполнителю без комиссии.
+        Метод удерживает комиссию, переводит деньги исполнителю и возвращает сумму выплаты.
+        """
+        commission = self.calculate_commission(amount)
+        payout = amount - commission
+
+        # Здесь должна быть логика перевода денег исполнителю.
+        # Например, update баланса исполнителя:
+        executor = self.executor  # предположим, у заказа есть поле executor
+        executor.balance += payout
+        executor.save()
+
+        # Логируем или создаем запись о комиссии, если нужно
+        # Например:
+        # CommissionRecord.objects.create(order=self, amount=commission)
+
+        return payout
+
+    def refund_to_customer(self):
+        """Возврат средств заказчику"""
+        with transaction.atomic():
+            customer_profile = self.customer.profile
+            customer_profile.frozen_balance -= self.price
+            customer_profile.balance += self.price
+            customer_profile.save()
+
+            Transaction.objects.create(
+                user=self.customer,
+                amount=self.price,
+                order=self,
+                transaction_type='deposit',
+                comment="Возврат средств за отмененный заказ"
+            )
+
+            self.status = 'refunded'
+            self.save()
+
+    def pay_to_employee(self):
+        """Логика выплаты исполнителю"""
+        if not self.employee:
+            raise ValidationError("Не указан исполнитель для выплаты")
+
+        try:
+            with transaction.atomic():
+                profile = self.employee.profile
+                profile.balance += Decimal(str(self.price))
+                profile.completed_orders += 1
+                profile.save()
+
+                # Размораживаем средства у заказчика
+                customer_profile = self.customer.profile
+                customer_profile.frozen_balance -= self.price
+                customer_profile.save()
+
+                # Создаем записи о транзакциях
+                Transaction.objects.create(
+                    user=self.employee,
+                    amount=self.price,
+                    order=self,
+                    transaction_type='payout',
+                    comment="Выплата за выполненный заказ"
+                )
+                Transaction.objects.create(
+                    user=self.customer,
+                    amount=-self.price,
+                    order=self,
+                    transaction_type='withdrawal',
+                    comment="Списание замороженных средств за заказ"
+                )
+
+                self.status = 'completed'
+                self.save()
+        except Profile.DoesNotExist:
+            raise ValidationError("У исполнителя отсутствует профиль")
+        except Exception as e:
+            logger.error(f"Ошибка выплаты исполнителю: {str(e)}")
+            raise
+
+    def refund_to_client(self):
+        customer_profile = self.customer.profile
+
+        if customer_profile.frozen_balance < self.amount:
+            raise ValidationError("Недостаточно замороженных средств у заказчика для возврата")
+
+        with transaction.atomic():
+            # Возвращаем замороженные средства на обычный баланс
+            customer_profile.frozen_balance -= self.amount
+            customer_profile.balance += self.amount
+            customer_profile.save()
+
+            # Обновляем статус заказа
+            self.status = 'refunded'
+            self.save()
+
+    def pay_to_executor(self):
+        if not self.employee:
+            raise ValidationError("У заказа нет назначенного исполнителя")
+
+        customer_profile = self.customer.profile
+        executor_profile = self.employee.profile
+
+        if customer_profile.frozen_balance < self.amount:
+            raise ValidationError("Недостаточно замороженных средств у заказчика")
+
+        with transaction.atomic():
+            # Списать с frozen заказчика
+            customer_profile.frozen_balance -= self.amount
+            customer_profile.save()
+
+            # Начислить исполнителю
+            executor_profile.balance += self.amount
+            executor_profile.save()
+
+        self.status = 'completed'  # или другой статус
+        self.save()
+
+    def create_dispute(self, customer_comment):
+        if hasattr(self, 'dispute'):
+            return self.dispute  # спор уже существует
+
+        if self.status != 'rejected':
+            raise ValidationError("Нельзя создать спор для заказа в текущем статусе")
+
+        dispute = Dispute.objects.create(
+            order=self,
+            customer_comment=customer_comment,
+            status='pending'
+        )
+        self.dispute_deadline = timezone.now() + timezone.timedelta(days=7)
+        self.save()
+        return dispute
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        """Валидация перед сохранением"""
+        if self.price <= 0:
+            raise ValidationError("Цена должна быть положительной")
+
+        # Проверяем баланс только при создании заказа
+        if not self.pk and hasattr(self, 'customer') and hasattr(self.customer, 'profile'):
+            if self.customer.profile.available_balance < self.price:
+                raise ValidationError("Недостаточно средств на балансе")
+
+        if self.status == 'in_progress' and not self.employee:
+            raise ValidationError("Для заказа в работе должен быть указан исполнитель")
+
+    def submit_to_client(self):
+        """Исполнитель отправляет заказ на проверку клиенту"""
+        if self.status != 'in_progress':
+            raise ValidationError("Можно отправить только заказ в статусе 'В работе'")
+
+        self.status = 'submitted'
+        self.submitted_at = now()
+        self.payout_due_date = now() + timedelta(days=3)
+        self.save()
+
+    def client_approve(self):
+        """Клиент подтверждает заказ и средства переводятся исполнителю"""
+        if self.status != 'submitted':
+            raise ValidationError("Можно подтвердить только заказ в статусе 'Отправлено клиенту'")
+
+        try:
+            with transaction.atomic():
+                # Проверяем наличие профилей
+                if not hasattr(self.customer, 'profile'):
+                    raise ValidationError("У заказчика отсутствует профиль")
+                if not hasattr(self.employee, 'profile'):
+                    raise ValidationError("У исполнителя отсутствует профиль")
+
+                customer_profile = self.customer.profile
+                employee_profile = self.employee.profile
+
+                # Проверяем замороженные средства
+                if customer_profile.frozen_balance < self.price:
+                    raise ValidationError("Недостаточно замороженных средств")
+
+                # Переводим средства исполнителю (с комиссией 10%)
+                commission = self.price * Decimal('0.10')
+                payout_amount = self.price - commission
+
+                # Размораживаем средства у заказчика
+                customer_profile.frozen_balance -= self.price
+                customer_profile.save()
+
+                # Начисляем средства исполнителю
+                employee_profile.balance += payout_amount
+                employee_profile.completed_orders += 1
+                employee_profile.save()
+
+                # Создаем записи о транзакциях
+                Transaction.objects.create(
+                    user=self.customer,
+                    amount=-self.price,
+                    order=self,
+                    transaction_type='payout',
+                    comment="Оплата заказа исполнителю"
+                )
+                Transaction.objects.create(
+                    user=self.employee,
+                    amount=payout_amount,
+                    order=self,
+                    transaction_type='income',
+                    comment="Оплата за выполненный заказ"
+                )
+
+                # <---- ДОБАВЬ ЭТО СЮДА:
+                Transaction.objects.create(
+                    user=self.customer,
+                    amount=commission,
+                    order=self,
+                    transaction_type='commission',
+                    comment="Удержанная комиссия с заказа"
+                )
+
+                # Меняем статус заказа
+                self.status = 'completed'
+                self.payout_due_date = None
+                self.save()
+
+                # Уведомление исполнителю
+                Message.objects.create(
+                    order=self,
+                    sender=self.customer,
+                    text="Заказ принят клиентом"
+                )
+
+        except Exception as e:
+            logger.error(f"Error approving order {self.id}: {str(e)}")
+            raise
+
+    def client_reject(self, comment=None):
+        """Клиент отклоняет заказ и автоматически создается спор"""
+        if self.status != 'submitted':
+            raise ValidationError("Можно отклонить только заказ в статусе 'Отправлено клиенту'")
+
+        self.status = 'rejected'
+        self.rejection_comment = comment
+        self.payout_due_date = None
+        self.save()
+
+        # Автоматическое создание спора
+        Dispute.objects.create(
+            order=self,
+            customer_comment=comment or "Клиент отклонил заказ без комментария",
+            status='pending'  # или 'open', в зависимости от вашей логики
+        )
+
+    def return_to_work(self):
+        """Возврат заказа в работу после отклонения"""
+        if self.status != 'rejected':
+            raise ValidationError("Можно вернуть в работу только отклоненный заказ")
+
+        self.status = 'in_progress'
+        self.save()
+
+    def _process_payout(self):
+        """Обработка выплаты исполнителю с комиссией 10%"""
+        if not self.employee:
+            return
+
+        commission = self.price * Decimal('0.10')
+        payout_amount = self.price - commission
+
+        with transaction.atomic():
+            try:
+                customer_profile = self.customer.profile
+                employee_profile = self.employee.profile
+
+                # Списываем замороженные средства у заказчика
+                customer_profile.frozen_balance -= self.price
+                customer_profile.save()
+
+                # Начисляем средства исполнителю
+                employee_profile.balance += payout_amount
+                employee_profile.completed_orders += 1
+                employee_profile.save()
+
+                # Транзакция для исполнителя
+                Transaction.objects.create(
+                    user=self.employee,
+                    amount=payout_amount,
+                    order=self,
+                    transaction_type='payout',
+                    comment="Автоматическая выплата за заказ"
+                )
+
+                # Транзакция для заказчика
+                Transaction.objects.create(
+                    user=self.customer,
+                    amount=-self.price,
+                    order=self,
+                    transaction_type='withdrawal',
+                    comment="Списание замороженных средств (автоматическое завершение)"
+                )
+
+            except Profile.DoesNotExist:
+                logger.error(f"Profile not found for user {self.employee.id}")
+            except Exception as e:
+                logger.error(f"Error processing payout: {str(e)}")
+                raise
+
+    def check_auto_completion(self):
+        """Проверка и автоматическое завершение заказа через 3 дня"""
+        if (self.status == 'submitted' and
+                self.payout_due_date and
+                now() >= self.payout_due_date):
+            self._process_payout()
+            self.status = 'auto_completed'
+            self.payout_due_date = None
+            self.save()
+            return True
+        return False
+
+    def __str__(self):
+        return f"{self.title} ({self.get_status_display()})"
+
+
+class Dispute(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает решения'),
+        ('resolved', 'Решен'),
+    ]
+
+    RESOLUTION_CHOICES = [
+        ('customer', 'Клиент'),
+        ('executor', 'Исполнитель'),
+    ]
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='dispute')
+    customer_comment = models.TextField()
+    admin_comment = models.TextField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Куда отправить деньги: 'customer' или 'employee'
+    resolved_for = models.CharField(
+        max_length=10,
+        choices=RESOLUTION_CHOICES,
+        null=True,
+        blank=True,
+    )
+
+    def resolve(self, admin, decision, refund_customer):
+        if self.status == 'resolved':
+            raise ValidationError("Этот спор уже был решен.")
+
+        self.admin_comment = f"Решено админом: {admin.username}"
+        self.resolved_at = timezone.now()
+
+        if refund_customer:
+            self.order.customer.profile.balance += self.order.price
+            self.order.customer.profile.save()
+            self.resolved_for = 'customer'
+        else:
+            self.order.employee.profile.balance += self.order.price
+            self.order.employee.profile.save()
+            self.resolved_for = 'executor'
+
+        self.status = 'resolved'
+        self.save()
+
+        self.order.status = 'closed'
+        self.order.save()
+
+    def resolve_dispute(self, decision, admin_comment):
+        self.admin_comment = admin_comment
+        with transaction.atomic():
+            order = self.order
+            customer = order.customer
+            executor = order.employee
+            amount = order.price
+
+            customer_profile = customer.profile
+            executor_profile = executor.profile
+
+            if decision == 'executor':
+                commission = (amount * Decimal('0.10')).quantize(Decimal('0.01'))
+                payout = amount - commission
+
+                # Проверка замороженных средств
+                if customer_profile.frozen_balance < amount:
+                    raise ValidationError("У заказчика недостаточно замороженных средств")
+
+                # Списание замороженных средств
+                customer_profile.frozen_balance -= amount
+                customer_profile.save()
+
+                # Выплата исполнителю
+                executor_profile.balance += payout
+                executor_profile.save()
+
+                # Транзакции
+                Transaction.objects.create(
+                    user=customer,
+                    amount=-amount,
+                    order=order,
+                    transaction_type='payout',
+                    comment=f"Списание средств за заказ {order.id}"
+                )
+                Transaction.objects.create(
+                    user=executor,
+                    amount=payout,
+                    order=order,
+                    transaction_type='income',
+                    comment=f"Выплата за заказ {order.id} (с учётом комиссии)"
+                )
+                Transaction.objects.create(
+                    user=customer,
+                    amount=commission,
+                    order=order,
+                    transaction_type='commission',
+                    comment=f"Комиссия с заказа {order.id}"
+                )
+
+                self.resolved_for = 'executor'
+
+            elif decision == 'customer':
+                # Размораживаем деньги и возвращаем
+                if customer_profile.frozen_balance < amount:
+                    raise ValidationError("У заказчика недостаточно замороженных средств")
+
+                customer_profile.frozen_balance -= amount
+                customer_profile.balance += amount
+                customer_profile.save()
+
+                Transaction.objects.create(
+                    user=customer,
+                    amount=amount,
+                    order=order,
+                    transaction_type='refund',
+                    comment=f"Возврат средств заказчику по заказу {order.id}"
+                )
+
+                self.resolved_for = 'customer'
+
+            else:
+                raise ValueError("Неверный победитель спора")
+
+            self.status = 'resolved'
+            self.resolved_at = timezone.now()
+            self.save()
+
+            order.status = 'closed'
+            order.save()
+
+
+class Transaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('deposit', 'Пополнение'),
+        ('withdrawal', 'Вывод'),
+        ('payout', 'Выплата за заказ'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    comment = models.TextField(blank=True, null=True, verbose_name="Комментарий")
+
+    def __str__(self):
+        return f"{self.get_transaction_type_display()} {self.amount} руб. ({self.user.username})"
+
+
+class Message(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    text = models.TextField(blank=True, verbose_name="Текст сообщения")
+    file = models.FileField(upload_to='chat_files/', null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Время отправки")
+    is_read = models.BooleanField(default=False, verbose_name="Прочитано")
+
+    class Meta:
+        verbose_name = 'Сообщение'
+        verbose_name_plural = 'Сообщения'
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"Сообщение от {self.sender.username} ({self.timestamp})"
+
+    def filename(self):
+        return os.path.basename(self.file.name) if self.file else None
+
+
+class PayoutRequest(models.Model):
+    employee = models.ForeignKey(User, on_delete=models.CASCADE, related_name="payout_requests")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Сумма")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    processed_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата обработки")
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'В ожидании'),
+            ('approved', 'Одобрено'),
+            ('rejected', 'Отклонено')
+        ],
+        default='pending',
+        verbose_name="Статус"
+    )
+    comment = models.TextField(null=True, blank=True, verbose_name="Комментарий")
+
+    class Meta:
+        verbose_name = 'Запрос на выплату'
+        verbose_name_plural = 'Запросы на выплату'
+        ordering = ['-created_at']
+
+    def approve(self, comment=None):
+        """Администратор подтверждает выплату"""
+        if self.status != 'pending':
+            return False
+
+        with transaction.atomic():
+            self.status = 'approved'
+            self.processed_at = now()
+            self.comment = comment
+            self.save()
+        return True
+
+    def reject(self, comment=None):
+        """Администратор отклоняет выплату"""
+        if self.status != 'pending':
+            return False
+
+        with transaction.atomic():
+            # Возвращаем деньги на баланс исполнителя
+            profile = Profile.objects.get(user=self.employee)
+            profile.balance += self.amount
+            profile.save()
+
+            self.status = 'rejected'
+            self.processed_at = now()
+            self.comment = comment
+            self.save()
+        return True
+
+    def __str__(self):
+        return f"Запрос на выплату {self.amount} от {self.employee.username}"
+
+
+class PriceProposal(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='price_proposals')
+    employee = models.ForeignKey(User, on_delete=models.CASCADE)
+    proposed_price = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_accepted = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('order', 'employee')  # чтобы исполнитель не делал повторные предложения
+
+
+class DisputeMessage(models.Model):
+    dispute = models.ForeignKey(Dispute, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    text = models.TextField()
+    file = models.FileField(upload_to='dispute_files/', blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['timestamp']
+
+
+
+
+
+
+from django.db import models
+from django.contrib.auth import get_user_model
+
+#finance/models.py
+
+User = get_user_model()
+
+
+class Transaction(models.Model):
+    TRANSACTION_TYPE_CHOICES = [
+        ('deposit', 'Пополнение'),
+        ('withdrawal', 'Вывод'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    type = models.CharField(choices=TRANSACTION_TYPE_CHOICES, max_length=20)
+    stripe_payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
+    status = models.CharField(max_length=50, default='pending')  # pending, succeeded, failed
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.type} - {self.amount}"
+
+
+
+
+

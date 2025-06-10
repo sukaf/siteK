@@ -1,0 +1,162 @@
+#users/profile
+
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+  <h2>Личный кабинет</h2>
+
+  <div class="profile-header mb-4">
+    <div class="profile-persistent alert-info">
+      <h4>Привет, {{ user.username }}!</h4>
+      <p>Доступный баланс: {{ user.profile.balance }}</p>
+      <p>Замороженные средства: {{ user.profile.frozen_balance }}</p>
+      <p>Общий баланс: {{ user.profile.balance|add:user.profile.frozen_balance }}</p>
+
+      <!-- Добавьте эту кнопку -->
+      <a href="{% url 'payments:deposit' %}" class="btn btn-success">
+        <i class="fas fa-plus-circle"></i> Пополнить баланс
+      </a>
+    </div>
+
+    <div class="btn-group">
+      <a href="{% url 'users:logout' %}" class="btn btn-outline-danger">
+        <i class="fas fa-sign-out-alt"></i> Выйти
+      </a>
+
+      {% if user.is_customer %}
+        <a href="{% url 'home' %}" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Создать заказ
+        </a>
+      {% endif %}
+
+      {% if user.is_employee %}
+      <div class="card mt-4">
+          <div class="card-header">
+              <h5>Финансы</h5>
+          </div>
+          <div class="card-body">
+              <p>Текущий баланс: <strong>{{ user.profile.balance }} руб.</strong></p>
+              <a href="{% url 'payments:request_withdrawal' %}" class="btn btn-primary">
+                  <i class="fas fa-money-bill-wave"></i> Запросить выплату
+              </a>
+          </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if waiting_orders %}
+    <div class="card mb-4">
+      <div class="card-header bg-warning">
+        <h5 class="mb-0">Заказы, ожидающие согласования цены</h5>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          {% for order in waiting_orders %}
+            <div class="list-group-item">
+              <h5>{{ order.title }}</h5>
+              <p>{{ order.description }}</p>
+              <p><strong>Предложенная цена:</strong> {{ order.proposed_price }} руб.</p>
+
+              <div class="btn-group">
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="order_id" value="{{ order.id }}">
+                  <button type="submit" name="action" value="accept" class="btn btn-sm btn-success">
+                    Принять
+                  </button>
+                </form>
+
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="order_id" value="{{ order.id }}">
+                  <button type="submit" name="action" value="reject" class="btn btn-sm btn-danger">
+                    Отклонить
+                  </button>
+                </form>
+
+                <button class="btn btn-sm btn-info" data-toggle="collapse"
+                        data-target="#counterOffer{{ order.id }}">
+                  Предложить свою цену
+                </button>
+              </div>
+
+              <div id="counterOffer{{ order.id }}" class="collapse mt-2">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="order_id" value="{{ order.id }}">
+                  <div class="form-group">
+                    <input type="number" name="proposed_price"
+                           class="form-control" placeholder="Ваша цена" required>
+                  </div>
+                  <button type="submit" name="action" value="counter_offer"
+                          class="btn btn-primary btn-sm">
+                    Отправить
+                  </button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Мои заказы</h5>
+    </div>
+    <div class="card-body">
+      {% if orders %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Название</th>
+                <th>Статус</th>
+                <th>Цена</th>
+                <th>Дата</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in orders %}
+                <tr>
+                  <td>
+                    <a href="{% url 'orders:order_detail' order.id %}">{{ order.title }}</a>
+                  </td>
+                  <td>
+                    <span class="badge
+                      {% if order.status == 'completed' or order.status == 'auto_completed' %}badge-success
+                      {% elif order.status == 'rejected' %}badge-danger
+                      {% elif order.status == 'in_progress' %}badge-warning
+                      {% else %}badge-info{% endif %}">
+                      {{ order.get_status_display }}
+                    </span>
+                  </td>
+                  <td>{{ order.price }} руб.</td>
+                  <td>{{ order.created_at|date:"d.m.Y" }}</td>
+                  <td>
+                    <a href="{% url 'orders:order_detail' order.id %}" class="btn btn-sm btn-outline-primary">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted">У вас пока нет заказов.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Подключение Bootstrap JS для работы collapse -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+

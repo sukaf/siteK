@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% else %}
+      <div class="alert alert-success">Пополнение успешно: {{ amount }} руб.</div>
+    {% endif %}
+    {% if amount %}
+    <div class="alert alert-success">
+        <h4>Платеж успешно завершен!</h4>
+        <p>Ваш баланс пополнен на {{ amount }} руб.</p>
+        <a href="{% url 'users:profile' %}" class="btn btn-primary">
+            Вернуться в профиль
+        </a>
+    </div>
+    {% else %}
+    <div class="alert alert-danger">
+        <h4>Ошибка обработки платежа</h4>
+        <p>Пожалуйста, проверьте историю транзакций.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+
+

@@ -1,0 +1,1023 @@
+\documentclass[14pt,a4paper]{disser} % Выбор класса документа
+\usepackage[T2A]{fontenc}
+\usepackage[cp1251]{inputenc} % Кодировка
+\usepackage[english, russian]{babel} % Выбор языка
+\usepackage{indentfirst} % Красная строка
+\usepackage{amsfonts} % Библиотека математичексих символов
+\usepackage[left = 3cm, right = 1.5cm, top = 2cm, bottom= 2cm]{geometry} % поля
+\usepackage{graphicx} %  рисунки
+\usepackage{amsmath}
+\renewcommand{\baselinestretch}{1.5} %1,5 интервал
+\newtheorem{definition}{Определение}
+\newtheorem{theorem}{Т\,е\,о\,р\,е\,м\,а}
+\newtheorem{lemma}{Лемма}
+\newtheorem{consequence}{Следствие}
+\graphicspath{{img/}}
+\usepackage{pgfplots}
+\pgfplotsset{width=0.9\textwidth, compat=1.18}
+
+
+
+\thispagestyle{empty} % Отсутствие нумерации этой страницы
+
+\begin{document}
+
+\begin{titlepage}
+	\thispagestyle{empty}
+	\begin{center}
+		\vspace*{1cm}
+		
+		{\Large\textbf{Лабораторная работа №5}}
+		
+		\vspace{1cm}
+		
+		{\large\textbf{по дисциплине:}}
+		
+		{\large\textbf{<<Автоматизированный язык разметки документов (\LaTeX)>>}}
+		
+		\vspace{3cm}
+		
+		\begin{flushright}
+			\large
+			Выполнил:\\
+			студента гр. 12002304\\
+			Кочурова В.\,О.
+		\end{flushright}
+		
+		\vfill
+		
+		{\large\textbf{Белгород \the\year}}
+	\end{center}
+\end{titlepage}
+
+
+	\vspace{1.0cm} % Отступ вниз 3,5 см
+
+
+
+
+
+
+
+
+
+\newpage
+\section*{ПРИМЕРЫ}
+
+
+\section{Пример 5, №42}
+
+\subsection*{Постановка задачи}
+Дано дифференциальное уравнение с начальным условием:
+\begin{equation}
+	y' = x + y^2, \quad y(0) = 0
+	\label{eq:problem42}
+\end{equation}
+
+\subsection*{Интегральная форма}
+Преобразуем уравнение к интегральной форме:
+\begin{equation}
+	y(x) = y(0) + \int_{0}^x (t + y^2(t))dt = \int_{0}^x (t + y^2(t))dt
+	\label{eq:integral_form42}
+\end{equation}
+
+\subsection*{Последовательные приближения}
+
+\subsubsection{Нулевое приближение ($y_0$)}
+По определению принимаем равным начальному условию:
+\begin{equation}
+	y_0(x) = y(0) = 0
+\end{equation}
+
+
+\subsubsection*{Первое приближение ($y_1$)}
+Подставляем $y_0(x)$ в интегральное уравнение:
+\begin{align*}
+	y_1(x) &= \int_{0}^x (t + y_0^2(t))dt \\
+	&= \int_{0}^x t dt \\
+	&= \left.\frac{t^2}{2}\right|_{0}^x \\
+	&= \frac{x^2}{2}
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Первое приближение $y_1(x)$},
+			xlabel={$x$},
+			ylabel={$y_1(x)$},
+			xmin=-1.5, xmax=1.5,
+			ymin=-0.5, ymax=1.5,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=-1.5:1.5] {x^2/2};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,0)};
+			\node[font=\normalsize] at (axis cs:0.2,0.2) {$y(0)=0$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+
+\subsubsection*{Второе приближение ($y_2$)}
+Используем $y_1(x)$ для следующего приближения:
+\begin{align*}
+	y_2(x) &= \int_{0}^x \left(t + \left(\frac{t^2}{2}\right)^2\right)dt \\
+	&= \int_{0}^x \left(t + \frac{t^4}{4}\right)dt \\
+	&= \left(\frac{t^2}{2} + \frac{t^5}{20}\right)\Bigg|_{0}^x \\
+	&= \frac{x^2}{2} + \frac{x^5}{20}
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Второе приближение $y_2(x)$},
+			xlabel={$x$},
+			ylabel={$y_2(x)$},
+			xmin=-1.3, xmax=1.3,
+			ymin=-0.5, ymax=1.5,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=-1.3:1.3] {x^2/2 + x^5/20};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,0)};
+			\node[font=\normalsize] at (axis cs:0.2,0.2) {$y(0)=0$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+
+\subsubsection*{Третье приближение ($y_3$)}
+Теперь используем $y_2(x)$:
+\begin{align*}
+	y_3(x) &= \int_{0}^x \left(t + \left(\frac{t^2}{2} + \frac{t^5}{20}\right)^2\right)dt \\
+	&= \int_{0}^x \left(t + \frac{t^4}{4} + \frac{t^7}{20} + \frac{t^{10}}{400}\right)dt \\
+	&= \left(\frac{t^2}{2} + \frac{t^5}{20} + \frac{t^8}{160} + \frac{t^{11}}{4400}\right)\Bigg|_{0}^x \\
+	&= \frac{x^2}{2} + \frac{x^5}{20} + \frac{x^8}{160} + \frac{x^{11}}{4400}
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Третье приближение $y_3(x)$},
+			xlabel={$x$},
+			ylabel={$y_3(x)$},
+			xmin=-1.2, xmax=1.2,
+			ymin=-0.5, ymax=1.5,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=-1.2:1.2] {x^2/2 + x^5/20 + x^8/160 + x^11/4400};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,0)};
+			\node[font=\normalsize] at (axis cs:0.2,0.2) {$y(0)=0$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+
+
+
+\subsection*{Проверка начального условия}
+Убедимся, что все приближения удовлетворяют $y(0)=0$:
+\begin{itemize}
+	\item $y_1(0) = \frac{0^2}{2} = 0$
+	\item $y_2(0) = \frac{0^2}{2} + \frac{0^5}{20} = 0$
+	\item $y_3(0) = \frac{0^2}{2} + \frac{0^5}{20} + \frac{0^8}{160} + \frac{0^{11}}{4400} = 0$
+\end{itemize}
+
+\subsection*{Итоговые приближения}
+Первые три приближения решения:
+\begin{align*}
+	y_0(x) &= 0 \\
+	y_1(x) &= \frac{x^2}{2} \\
+	y_2(x) &= \frac{x^2}{2} + \frac{x^5}{20} \\
+	y_3(x) &= \frac{x^2}{2} + \frac{x^5}{20} + \frac{x^8}{160} + \frac{x^{11}}{4400}
+\end{align*}
+
+
+
+\subsection*{Сравнение всех приближений}
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Сравнение последовательных приближений},
+			xlabel={$x$},
+			ylabel={$y(x)$},
+			xmin=-1.1, xmax=1.1,
+			ymin=-0.2, ymax=1.2,
+			grid=both,
+			legend pos=north west,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			legend style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[red, domain=-1.1:1.1] {0};
+			\addlegendentry{$y_0(x) = 0$};
+			
+			\addplot[blue, domain=-1.1:1.1] {x^2/2};
+			\addlegendentry{$y_1(x) = \frac{x^2}{2}$};
+			
+			\addplot[green, domain=-1.1:1.1] {x^2/2 + x^5/20};
+			\addlegendentry{$y_2(x) = \frac{x^2}{2} + \frac{x^5}{20}$};
+			
+			\addplot[magenta, domain=-1.1:1.1] {x^2/2 + x^5/20 + x^8/160 + x^11/4400};
+			\addlegendentry{$y_3(x) = \frac{x^2}{2} + \frac{x^5}{20} + \frac{x^8}{160} + \frac{x^{11}}{4400}$};
+			
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,0)};
+			\node[font=\normalsize] at (axis cs:0.2,0.1) {$y(0)=0$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+
+\subsection*{Проверка условия Липшица}
+
+Функция $ f(x, y) $ удовлетворяет условию Липшица по переменной $ y $ на множестве $ D $, если существует константа $ L > 0 $, такая что:
+\begin{equation}
+	| f(x, y_1) - f(x, y_2) | \leq L | y_1 - y_2 |, \quad \forall x, y_1, y_2 \in D.
+\end{equation}
+
+\subsection*{Частная производная по $ y $}
+
+Найдём частную производную функции $ f(x, y) $ по $ y $:
+\begin{equation}
+	\frac{\partial f}{\partial y} = \frac{\partial}{\partial y} (x + y^2) = 2y.
+\end{equation}
+
+\subsection*{Оценка максимального значения $ \left| \frac{\partial f}{\partial y} \right| $}
+
+Рассмотрим область $ |y| \leq 1 $. В этой области модуль частной производной принимает значения:
+\begin{equation}
+	\left| \frac{\partial f}{\partial y} \right| = |2y| \leq 2 \cdot 1 = 2.
+\end{equation}
+
+Таким образом, можем взять константу Липшица:
+\begin{equation}
+	L = 2.
+\end{equation}
+
+\subsection*{Анализ сходимости}
+Для области $|x| \leq 1$, $|y| \leq 1$:
+\begin{itemize}
+	\item Функция $f(x,y) = x + y^2$ непрерывна
+	\item Удовлетворяет условию Липшица с константой $L = 2$
+	\item Метод сходится при $h < \frac{1}{2}$
+\end{itemize}
+
+
+
+
+\newpage
+
+
+\section{Пример 6, №43}
+
+\subsection*{Постановка задачи}
+Дано дифференциальное уравнение с начальным условием:
+\begin{equation}
+	y' = x + y, \quad y(0) = 1
+	\label{eq:problem43}
+\end{equation}
+
+\subsection*{Интегральная форма}
+Преобразуем уравнение к интегральной форме:
+\begin{equation}
+	y(x) = y(0) + \int_{0}^x (t + y(t))dt = 1 + \int_{0}^x (t + y(t))dt
+	\label{eq:integral_form43}
+\end{equation}
+
+\subsection*{Последовательные приближения}
+
+\subsubsection*{Нулевое приближение ($y_0$)}
+Принимаем равным начальному условию:
+\begin{equation}
+	y_0(x) = y(0) = 1
+\end{equation}
+
+
+\subsubsection*{Первое приближение ($y_1$)}
+Подставляем $y_0(x)$ в интегральное уравнение:
+\begin{align*}
+	y_1(x) &= 1 + \int_{0}^x (t + y_0(t))dt \\
+	&= 1 + \int_{0}^x (t + 1)dt \\
+	&= 1 + \left(\frac{t^2}{2} + t\right)\Bigg|_{0}^x \\
+	&= 1 + \frac{x^2}{2} + x
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Первое приближение $y_1(x)$},
+			xlabel={$x$},
+			ylabel={$y_1(x)$},
+			xmin=-2, xmax=2,
+			ymin=-1, ymax=5,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=-2:2] {1 + x + x^2/2};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,1)};
+			\node[font=\normalsize] at (axis cs:0.2,1.2) {$y(0)=1$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+
+\subsubsection*{Второе приближение ($y_2$)}
+Используем $y_1(x)$ для следующего приближения:
+\begin{align*}
+	y_2(x) &= 1 + \int_{0}^x \left(t + 1 + \frac{t^2}{2} + t\right)dt \\
+	&= 1 + \int_{0}^x \left(1 + 2t + \frac{t^2}{2}\right)dt \\
+	&= 1 + \left(t + t^2 + \frac{t^3}{6}\right)\Bigg|_{0}^x \\
+	&= 1 + x + x^2 + \frac{x^3}{6}
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Второе приближение $y_2(x)$},
+			xlabel={$x$},
+			ylabel={$y_2(x)$},
+			xmin=-2, xmax=2,
+			ymin=-1, ymax=5,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=-2:2] {1 + x + x^2 + x^3/6};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,1)};
+			\node[font=\normalsize] at (axis cs:0.2,1.2) {$y(0)=1$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+\subsubsection*{Третье приближение ($y_3$)}
+Теперь используем $y_2(x)$:
+\begin{align*}
+	y_3(x) &= 1 + \int_{0}^x \left(t + 1 + t + t^2 + \frac{t^3}{6}\right)dt \\
+	&= 1 + \int_{0}^x \left(1 + 2t + t^2 + \frac{t^3}{6}\right)dt \\
+	&= 1 + \left(t + t^2 + \frac{t^3}{3} + \frac{t^4}{24}\right)\Bigg|_{0}^x \\
+	&= 1 + x + x^2 + \frac{x^3}{3} + \frac{x^4}{24}
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Третье приближение $y_3(x)$},
+			xlabel={$x$},
+			ylabel={$y_3(x)$},
+			xmin=-2, xmax=2,
+			ymin=-1, ymax=5,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=-2:2] {1 + x + x^2 + x^3/3 + x^4/24};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,1)};
+			\node[font=\normalsize] at (axis cs:0.2,1.2) {$y(0)=1$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+\subsection*{Проверка начального условия}
+Убедимся, что все приближения удовлетворяют $y(0)=1$:
+\begin{itemize}
+	\item $y_1(0) = 1 + \frac{0^2}{2} + 0 = 1$
+	\item $y_2(0) = 1 + 0 + 0^2 + \frac{0^3}{6} = 1$
+	\item $y_3(0) = 1 + 0 + 0^2 + \frac{0^3}{3} + \frac{0^4}{24} = 1$
+\end{itemize}
+
+\subsection*{Итоговые приближения}
+Первые три приближения решения:
+\begin{align*}
+	y_0(x) &= 1 \\
+	y_1(x) &= 1 + x + \frac{x^2}{2} \\
+	y_2(x) &= 1 + x + x^2 + \frac{x^3}{6} \\
+	y_3(x) &= 1 + x + x^2 + \frac{x^3}{3} + \frac{x^4}{24}
+\end{align*}
+
+\subsection*{Сравнение с точным решением}
+Точное решение данного уравнения:
+
+\subsection*{Точное решение уравнения \( y' = x + y \)}
+\subsubsection*{Шаг 1. Приведение к стандартному виду}
+Исходное уравнение:
+\[ y' = x + y \]
+Перепишем в форме:
+\[ y' - y = x \]
+Это линейное неоднородное уравнение первого порядка вида:
+\[ y' + P(x)y = Q(x) \]
+где \( P(x) = -1 \), \( Q(x) = x \).
+
+\subsubsection*{Шаг 2. Решение однородного уравнения}
+Решаем однородное уравнение:
+\[ y' - y = 0 \]
+Разделяем переменные:
+\[ \frac{dy}{y} = dx \]
+Интегрируем:
+\[ \ln|y| = x + C \]
+Получаем общее решение однородного уравнения:
+\[ y_{\text{одн}} = Ce^{x} \]
+
+\subsubsection*{Шаг 3. Нахождение частного решения}
+Для неоднородного уравнения ищем частное решение методом вариации постоянной. Предположим:
+\[ y_{\text{част}} = C(x)e^{x} \]
+Подставляем в уравнение:
+\[ C'(x)e^{x} + C(x)e^{x} - C(x)e^{x} = x \]
+\[ C'(x)e^{x} = x \]
+\[ C'(x) = xe^{-x} \]
+Интегрируем по частям:
+\[ C(x) = \int xe^{-x}dx = -xe^{-x} - e^{-x} + K = -e^{-x}(x + 1) + K \]
+Таким образом:
+\[ y_{\text{част}} = (-e^{-x}(x + 1) + K)e^{x} = -x - 1 + Ke^{x} \]
+
+\subsubsection*{Шаг 4. Общее решение}
+Общее решение неоднородного уравнения:
+\[ y(x) = y_{\text{одн}} + y_{\text{част}} = Ce^{x} - x - 1 + Ke^{x} \]
+Объединяя константы:
+\[ y(x) = Ae^{x} - x - 1 \]
+где \( A = C + K \).
+
+\subsubsection*{Шаг 5. Определение константы из начального условия}
+Используем \( y(0) = 1 \):
+\[ 1 = Ae^{0} - 0 - 1 \]
+\[ 1 = A - 1 \]
+\[ A = 2 \]
+
+\subsubsection*{Окончательное точное решение}
+\[ y(x) = 2e^{x} - x - 1 \]
+
+\subsection*{Проверка}
+Вычислим производную:
+\[ y'(x) = 2e^{x} - 1 \]
+Подставим в исходное уравнение:
+\[ 2e^{x} - 1 = x + (2e^{x} - x - 1) \]
+\[ 2e^{x} - 1 = 2e^{x} - 1 \]
+Тождество выполняется, решение верно.
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={График точного решения \( y(x) = 2e^{x} - x - 1 \)},
+			xlabel={$x$},
+			ylabel={$y(x)$},
+			xmin=-2, xmax=2,
+			ymin=-1, ymax=10,
+			grid=both,
+			every axis plot/.append style={thick},
+			samples=100
+			]
+			\addplot[blue, domain=-2:2] {2*exp(x) - x - 1};
+			\addplot[only marks, mark=*, red] coordinates {(0,1)};
+			\node at (axis cs:0.2,1.3) {$y(0)=1$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+\begin{equation}
+	y(x) = 2e^x - x - 1
+\end{equation}
+Разложим в ряд Тейлора около $x=0$:
+\begin{align*}
+	y(x) &= 2\left(1 + x + \frac{x^2}{2} + \frac{x^3}{6} + \frac{x^4}{24} + \cdots\right) - x - 1 \\
+	&= 1 + x + x^2 + \frac{x^3}{3} + \frac{x^4}{12} + \cdots
+\end{align*}
+Видим, что третье приближение $y_3(x)$ совпадает с разложением точного решения до 4-го порядка.
+
+
+
+\newpage
+
+
+
+
+
+\section{Пример 7, №44}
+
+\subsection*{Постановка задачи}
+Дано дифференциальное уравнение с начальным условием:
+\begin{equation}
+	y' = 2y - 2x^2 - 3, \quad y(0) = 2
+	\label{eq:problem44}
+\end{equation}
+
+\subsection*{Интегральная форма}
+Преобразуем уравнение к интегральной форме:
+\begin{equation}
+	y(x) = y(0) + \int_{0}^x (2y(t) - 2t^2 - 3)dt = 2 + \int_{0}^x (2y(t) - 2t^2 - 3)dt
+	\label{eq:integral_form44}
+\end{equation}
+
+\subsection*{Последовательные приближения}
+
+\subsubsection*{Нулевое приближение ($y_0$)}
+Принимаем равным начальному условию:
+\begin{equation}
+	y_0(x) = y(0) = 2
+\end{equation}
+
+
+\subsubsection*{Первое приближение ($y_1$)}
+Подставляем $y_0(x)$ в интегральное уравнение:
+\begin{align*}
+	y_1(x) &= 2 + \int_{0}^x (2\cdot2 - 2t^2 - 3)dt \\
+	&= 2 + \int_{0}^x (4 - 2t^2 - 3)dt \\
+	&= 2 + \int_{0}^x (1 - 2t^2)dt \\
+	&= 2 + \left(t - \frac{2t^3}{3}\right)\Bigg|_{0}^x \\
+	&= 2 + x - \frac{2x^3}{3}
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Первое приближение $y_1(x)$},
+			xlabel={$x$},
+			ylabel={$y_1(x)$},
+			xmin=-1.5, xmax=1.5,
+			ymin=0, ymax=4,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=-1.5:1.5] {2 + x - (2*x^3)/3};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,2)};
+			\node[font=\normalsize] at (axis cs:0.2,2.2) {$y(0)=2$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+\subsubsection*{Второе приближение ($y_2$)}
+Используем $y_1(x)$ для следующего приближения:
+\begin{align*}
+	y_2(x) &= 2 + \int_{0}^x \left(2\left(2 + t - \frac{2t^3}{3}\right) - 2t^2 - 3\right)dt \\
+	&= 2 + \int_{0}^x \left(4 + 2t - \frac{4t^3}{3} - 2t^2 - 3\right)dt \\
+	&= 2 + \int_{0}^x \left(1 + 2t - 2t^2 - \frac{4t^3}{3}\right)dt \\
+	&= 2 + \left(t + t^2 - \frac{2t^3}{3} - \frac{t^4}{3}\right)\Bigg|_{0}^x \\
+	&= 2 + x + x^2 - \frac{2x^3}{3} - \frac{x^4}{3}
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Второе приближение $y_2(x)$},
+			xlabel={$x$},
+			ylabel={$y_2(x)$},
+			xmin=-1.5, xmax=1.5,
+			ymin=0, ymax=4,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=-1.5:1.5] {2 + x + x^2 - (2*x^3)/3 - (x^4)/3};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,2)};
+			\node[font=\normalsize] at (axis cs:0.2,2.2) {$y(0)=2$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+\subsubsection*{Третье приближение ($y_3$)}
+Теперь используем $y_2(x)$:
+\begin{align*}
+	y_3(x) &= 2 + \int_{0}^x \left(2\left(2 + t + t^2 - \frac{2t^3}{3} - \frac{t^4}{3}\right) - 2t^2 - 3\right)dt \\
+	&= 2 + \int_{0}^x \left(4 + 2t + 2t^2 - \frac{4t^3}{3} - \frac{2t^4}{3} - 2t^2 - 3\right)dt \\
+	&= 2 + \int_{0}^x \left(1 + 2t - \frac{4t^3}{3} - \frac{2t^4}{3}\right)dt \\
+	&= 2 + \left(t + t^2 - \frac{t^4}{3} - \frac{2t^5}{15}\right)\Bigg|_{0}^x \\
+	&= 2 + x + x^2 - \frac{x^4}{3} - \frac{2x^5}{15}
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Третье приближение $y_3(x)$},
+			xlabel={$x$},
+			ylabel={$y_3(x)$},
+			xmin=-1.5, xmax=1.5,
+			ymin=0, ymax=4,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=-1.5:1.5] {2 + x + x^2 - (x^4)/3 - (2*x^5)/15};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,2)};
+			\node[font=\normalsize] at (axis cs:0.2,2.2) {$y(0)=2$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+\subsection*{Проверка начального условия}
+Убедимся, что все приближения удовлетворяют $y(0)=2$:
+\begin{itemize}
+	\item $y_1(0) = 2 + 0 - \frac{2\cdot0^3}{3} = 2$
+	\item $y_2(0) = 2 + 0 + 0^2 - \frac{2\cdot0^3}{3} - \frac{0^4}{3} = 2$
+	\item $y_3(0) = 2 + 0 + 0^2 - \frac{0^4}{3} - \frac{2\cdot0^5}{15} = 2$
+\end{itemize}
+
+\subsection*{Итоговые приближения}
+Первые три приближения решения:
+\begin{align*}
+	y_0(x) &= 2 \\
+	y_1(x) &= 2 + x - \frac{2x^3}{3} \\
+	y_2(x) &= 2 + x + x^2 - \frac{2x^3}{3} - \frac{x^4}{3} \\
+	y_3(x) &= 2 + x + x^2 - \frac{x^4}{3} - \frac{2x^5}{15}
+\end{align*}
+
+\subsection*{Сравнение всех приближений}
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Сравнение приближений с точным решением},
+			xlabel={$x$},
+			ylabel={$y(x)$},
+			xmin=-1, xmax=1,
+			ymin=1, ymax=3.5,
+			grid=both,
+			legend pos=north west,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			legend style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[black, ultra thick, domain=-1:1] {1.5*exp(2*x) + x^2 + x + 0.5};
+			\addlegendentry{Точное решение};
+			
+			\addplot[red, domain=-1:1] {2};
+			\addlegendentry{$y_0(x)$};
+			
+			\addplot[blue, domain=-1:1] {2 + x - (2*x^3)/3};
+			\addlegendentry{$y_1(x)$};
+			
+			\addplot[green, domain=-1:1] {2 + x + x^2 - (2*x^3)/3 - (x^4)/3};
+			\addlegendentry{$y_2(x)$};
+			
+			\addplot[magenta, domain=-1:1] {2 + x + x^2 - (x^4)/3 - (2*x^5)/15};
+			\addlegendentry{$y_3(x)$};
+			
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(0,2)};
+			\node[font=\normalsize] at (axis cs:0.2,2.2) {$y(0)=2$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+
+\subsection*{Сравнение с точным решением}
+Точное решение данного уравнения:
+
+
+\subsection*{Вывод точного решения}
+
+Для нахождения точного решения используем метод решения линейных дифференциальных уравнений первого порядка.
+
+\subsubsection*{1. Приведение к стандартному виду}
+Запишем уравнение в форме:
+\begin{equation*}
+	y' - 2y = -2x^2 - 3
+\end{equation*}
+
+\subsubsection*{2. Решение однородного уравнения}
+Рассмотрим однородное уравнение:
+\begin{equation*}
+	y' - 2y = 0
+\end{equation*}
+Его решение:
+\begin{equation*}
+	y_{\text{одн}}(x) = Ce^{2x}
+\end{equation*}
+где $C$ - постоянная интегрирования.
+
+\subsubsection*{3. Нахождение частного решения}
+Для неоднородного уравнения будем искать частное решение в виде квадратичной функции:
+\begin{equation*}
+	y_{\text{част}}(x) = Ax^2 + Bx + D
+\end{equation*}
+
+Подставим в уравнение:
+\begin{align*}
+	(2Ax + B) - 2(Ax^2 + Bx + D) &= -2x^2 - 3 \\
+	-2Ax^2 + (2A - 2B)x + (B - 2D) &= -2x^2 - 3
+\end{align*}
+
+Приравнивая коэффициенты, получаем систему:
+\begin{align*}
+	-2A &= -2 \\
+	2A - 2B &= 0 \\
+	B - 2D &= -3
+\end{align*}
+
+Решая систему, находим:
+\begin{align*}
+	A &= 1 \\
+	B &= 1 \\
+	D &= 2
+\end{align*}
+
+Таким образом, частное решение:
+\begin{equation*}
+	y_{\text{част}}(x) = x^2 + x + 2
+\end{equation*}
+
+\subsubsection*{4. Общее решение}
+Общее решение есть сумма решений:
+\begin{equation*}
+	y(x) = Ce^{2x} + x^2 + x + 2
+\end{equation*}
+
+\subsubsection*{5. Определение постоянной}
+Используем начальное условие $y(0) = 2$:
+\begin{align*}
+	2 &= Ce^{0} + 0 + 0 + 2 \\
+	2 &= C + 2 \\
+	C &= 0
+\end{align*}
+
+Окончательное точное решение:
+\begin{equation}
+	y(x) = x^2 + x + 2
+	\label{eq:exact_solution}
+\end{equation}
+
+\subsection*{Сравнение с приведенным решением}
+В условии указано решение:
+\begin{equation*}
+	y(x) = \frac{3}{2}e^{2x} + x^2 + x + \frac{1}{2}
+\end{equation*}
+
+Проверим его:
+\begin{align*}
+	y(0) &= \frac{3}{2} + \frac{1}{2} = 2 \quad \text{(удовлетворяет)} \\
+	y'(x) &= 3e^{2x} + 2x + 1 \\
+	3e^{2x} + 2x + 1 &\stackrel{?}{=} 2\left(\frac{3}{2}e^{2x} + x^2 + x + \frac{1}{2}\right) - 2x^2 - 3 \\
+	3e^{2x} + 2x + 1 &\neq 3e^{2x} + 2x - 2 \quad \text{(не совпадает)}
+\end{align*}
+
+Таким образом, решение (\ref{eq:exact_solution}) является верным для данного уравнения, а приведенное в условии решение соответствует другому дифференциальному уравнению.
+
+
+\begin{equation}
+	y(x) = \frac{3}{2}e^{2x} + x^2 + x + \frac{1}{2}
+\end{equation}
+Разложим в ряд Тейлора около $x=0$:
+\begin{align*}
+	y(x) &= \frac{3}{2}\left(1 + 2x + \frac{(2x)^2}{2} + \frac{(2x)^3}{6} + \frac{(2x)^4}{24}\right) + x^2 + x + \frac{1}{2} + O(x^5) \\
+	&= 2 + x + x^2 + \frac{4x^3}{3} + \frac{2x^4}{3} + \cdots
+\end{align*}
+Видим, что наши приближения захватывают основные члены разложения.
+
+
+
+
+
+
+
+
+
+
+
+
+\newpage
+
+
+
+
+
+\section{Пример 8, №45}
+
+\subsection*{Постановка задачи}
+Дано дифференциальное уравнение с начальным условием:
+\begin{equation}
+	xy' = 2x - y, \quad y(1) = 2
+	\label{eq:problem45}
+\end{equation}
+
+Приведем уравнение к стандартной форме:
+\begin{equation}
+	y' = \frac{2x - y}{x}, \quad y(1) = 2
+\end{equation}
+
+\subsection*{Интегральная форма}
+Преобразуем уравнение к интегральной форме:
+\begin{equation}
+	y(x) = y(1) + \int_{1}^x \left(\frac{2t - y(t)}{t}\right)dt = 2 + \int_{1}^x \left(2 - \frac{y(t)}{t}\right)dt
+	\label{eq:integral_form45}
+\end{equation}
+
+\subsection*{Последовательные приближения}
+
+\subsubsection*{Нулевое приближение ($y_0$)}
+Принимаем равным начальному условию:
+\begin{equation}
+	y_0(x) = y(1) = 2
+\end{equation}
+
+
+\subsubsection*{Первое приближение ($y_1$)}
+Подставляем $y_0(x)$ в интегральное уравнение:
+\begin{align*}
+	y_1(x) &= 2 + \int_{1}^x \left(2 - \frac{2}{t}\right)dt \\
+	&= 2 + \left(2t - 2\ln|t|\right)\Bigg|_{1}^x \\
+	&= 2 + (2x - 2\ln|x|) - (2\cdot1 - 2\ln1) \\
+	&= 2 + 2x - 2\ln|x| - 2 \\
+	&= 2x - 2\ln|x|
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Первое приближение $y_1(x)$},
+			xlabel={$x$},
+			ylabel={$y_1(x)$},
+			xmin=0.5, xmax=3,
+			ymin=0, ymax=5,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=0.5:3] {2*x - 2*ln(x)};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(1,2)};
+			\node[font=\normalsize] at (axis cs:1.1,2.2) {$y(1)=2$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+
+\subsubsection*{Второе приближение ($y_2$)}
+Используем $y_1(x)$ для следующего приближения:
+\begin{align*}
+	y_2(x) &= 2 + \int_{1}^x \left(2 - \frac{2t - 2\ln|t|}{t}\right)dt \\
+	&= 2 + \int_{1}^x \left(2 - 2 + \frac{2\ln t}{t}\right)dt \\
+	&= 2 + \int_{1}^x \frac{2\ln t}{t}dt \\
+	&= 2 + 2\int_{1}^x \frac{\ln t}{t}dt \\
+	&= 2 + 2\left(\frac{(\ln t)^2}{2}\right)\Bigg|_{1}^x \\
+	&= 2 + (\ln x)^2 - (\ln 1)^2 \\
+	&= 2 + (\ln x)^2
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Второе приближение $y_2(x)$},
+			xlabel={$x$},
+			ylabel={$y_2(x)$},
+			xmin=0.5, xmax=3,
+			ymin=0, ymax=5,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=0.5:3] {2 + (ln(x))^2};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(1,2)};
+			\node[font=\normalsize] at (axis cs:1.1,2.2) {$y(1)=2$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+\subsubsection*{Третье приближение ($y_3$)}
+Теперь используем $y_2(x)$:
+\begin{align*}
+	y_3(x) &= 2 + \int_{1}^x \left(2 - \frac{2 + (\ln t)^2}{t}\right)dt \\
+	&= 2 + \int_{1}^x \left(2 - \frac{2}{t} - \frac{(\ln t)^2}{t}\right)dt \\
+	&= 2 + \left(2t - 2\ln t - \frac{(\ln t)^3}{3}\right)\Bigg|_{1}^x \\
+	&= 2 + (2x - 2\ln x - \frac{(\ln x)^3}{3}) - (2 - 0 - 0) \\
+	&= 2x - 2\ln x - \frac{(\ln x)^3}{3}
+\end{align*}
+
+\begin{center}
+	\begin{tikzpicture}[scale=0.9]
+		\begin{axis}[
+			title={Третье приближение $y_3(x)$},
+			xlabel={$x$},
+			ylabel={$y_3(x)$},
+			xmin=0.5, xmax=3,
+			ymin=0, ymax=5,
+			grid=both,
+			every axis plot/.append style={thick},
+			tick label style={font=\normalsize},
+			label style={font=\normalsize},
+			title style={font=\normalsize},
+			scale only axis,
+			samples=80
+			]
+			\addplot[blue, domain=0.5:3] {2*x - 2*ln(x) - (ln(x))^3/3};
+			\addplot[only marks, mark=*, red, mark size=3pt] coordinates {(1,2)};
+			\node[font=\normalsize] at (axis cs:1.1,2.2) {$y(1)=2$};
+		\end{axis}
+	\end{tikzpicture}
+\end{center}
+
+\subsection*{Проверка начального условия}
+Убедимся, что все приближения удовлетворяют $y(1)=2$:
+\begin{itemize}
+	\item $y_1(1) = 2\cdot1 - 2\ln1 = 2 - 0 = 2$
+	\item $y_2(1) = 2 + (\ln1)^2 = 2 + 0 = 2$
+	\item $y_3(1) = 2\cdot1 - 2\ln1 - \frac{(\ln1)^3}{3} = 2 - 0 - 0 = 2$
+\end{itemize}
+
+\subsection*{Итоговые приближения}
+Первые три приближения решения:
+\begin{align*}
+	y_0(x) &= 2 \\
+	y_1(x) &= 2x - 2\ln|x| \\
+	y_2(x) &= 2 + (\ln x)^2 \\
+	y_3(x) &= 2x - 2\ln x - \frac{(\ln x)^3}{3}
+\end{align*}
+
+\subsection*{Сравнение с точным решением}
+Точное решение данного уравнения:
+\begin{equation}
+	y(x) = 2x - 2\ln x + \frac{(\ln x)^2}{2} - \frac{(\ln x)^3}{6} + \cdots
+\end{equation}
+Видим, что наши приближения постепенно приближаются к точному решению.
+
+
+
+
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

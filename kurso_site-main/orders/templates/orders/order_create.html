@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Создать заказ</h2>
+  <form method="post" enctype="multipart/form-data">  <!-- ✅ Добавлен enctype -->
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Создать</button>
+  </form>
+  <a href="{% url 'users:profile' %}">Вернуться в личный кабинет</a>
+{% endblock %}

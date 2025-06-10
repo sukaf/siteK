@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-warning">
+        <h4>Платеж отменен</h4>
+        <p>Вы можете попробовать снова.</p>
+        <a href="{% url 'payments:deposit' %}" class="btn btn-primary mr-2">
+            Попробовать снова
+        </a>
+        <a href="{% url 'users:profile' %}" class="btn btn-secondary">
+            Вернуться в профиль
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block content %}
+  <h1>Разрешить спор по заказу #{{ dispute.order.id }}</h1>
+
+  <p><strong>Заказ:</strong> {{ dispute.order.title }}</p>
+  <p><strong>Клиент:</strong> {{ dispute.order.customer }}</p>
+  <p><strong>Исполнитель:</strong> {{ dispute.order.employee }}</p>
+  <p><strong>Причина спора:</strong> {{ dispute.reason }}</p>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <p><strong>Кому вернуть деньги?</strong></p>
+
+    <label>
+      <input type="radio" name="decision" value="customer" required>
+      Клиенту
+    </label>
+    <br>
+    <label>
+      <input type="radio" name="decision" value="executor" required>
+      Исполнителю
+    </label>
+
+    <br><br>
+    <button type="submit">Разрешить спор</button>
+  </form>
+
+{% endblock %}
+
+

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Предложить цену для заказа: {{ order.title }}</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <p><strong>Описание:</strong> {{ order.description }}</p>
+            <p><strong>Изначальная цена:</strong> {{ order.price }} руб.</p>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="id_proposed_price" class="form-label">Ваше предложение цены:</label>
+            <input type="number" name="proposed_price" step="0.01" min="0"
+                   class="form-control" id="id_proposed_price" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Отправить предложение</button>
+        <a href="{% url 'order_detail' order.id %}" class="btn btn-secondary">Отмена</a>
+    </form>
+</div>
+{% endblock %}
+

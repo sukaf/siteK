@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header bg-danger text-white">
+            <h3>Отклонить заказ #{{ order.id }}</h3>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <strong>Внимание!</strong> После отклонения будет создан спор, который рассмотрит администратор.
+                У исполнителя будет 7 дней на исправление работы.
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Подробно опишите причины отклонения:</label>
+                    <textarea name="comment" class="form-control" rows="5" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Отклонить и создать спор
+                </button>
+                <a href="{% url 'order_detail' order.id %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Вернуться
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

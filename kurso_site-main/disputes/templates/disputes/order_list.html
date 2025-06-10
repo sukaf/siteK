@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Доступные заказы</h2>
+
+  {% if orders %}
+    <ul>
+      {% for order in orders %}
+          <div class="order">
+              <p>Заказ №{{ order.id }}</p>
+              <p>Цена: {{ order.price }} руб.</p>
+
+              <!-- Отображаем тип заказа -->
+              <p>
+                Тип заказа:
+                {% if order.tag == "ready_work" %}
+                  <strong>Готовая работа</strong>
+                {% elif order.tag == "consultation" %}
+                  <strong>Консультация</strong>
+                {% elif order.tag == "final_touches" %}
+                  <strong>Финальные штрихи</strong>
+                {% else %}
+                  <strong>Неизвестный тип</strong>
+                {% endif %}
+              </p>
+
+              <!-- Кнопка "Принять заказ" -->
+              <form method="post" action="{% url 'accept_order' order.id %}">
+                  {% csrf_token %}
+                  <button type="submit" name="accept">Принять заказ</button>
+              </form>
+
+              <!-- Форма для предложения цены -->
+              <form method="post" action="{% url 'accept_order' order.id %}">
+                  {% csrf_token %}
+                  {{ form.proposed_price }}
+                  <button type="submit" name="propose_price">Предложить цену</button>
+              </form>
+          </div>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Нет доступных заказов.</p>
+  {% endif %}
+
+  <a href="{% url 'users:profile' %}">Вернуться в личный кабинет</a>
+{% endblock %}
+

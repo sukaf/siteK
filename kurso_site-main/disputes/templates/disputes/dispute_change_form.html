@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block submit_buttons_bottom %}
+    {{ block.super }}
+
+    <div class="submit-row">
+        {% if original and original.status == 'pending' %}
+            <input type="submit" value="Вернуть заказчику" name="_refund-customer"
+                   style="background: #ba2121">
+            <input type="submit" value="Выплатить исполнителю" name="_pay-employee"
+                   style="background: #5bc0de">
+        {% endif %}
+    </div>
+{% endblock %}
+
